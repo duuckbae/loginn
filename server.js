@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 // public 폴더를 정적 폴더로 설정
 app.use(express.static(path.join(__dirname, "public")));
 
-// 메인 페이지 연결
+// 루트 접속 시 index.html 보내기
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
