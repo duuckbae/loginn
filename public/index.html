@@ -1,266 +1,86 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>로그인 / 회원가입</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
-
-    .container {
-      background: white;
-      padding: 35px;
-      border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-      width: 360px;
-      text-align: center;
-    }
-
-    h2 {
-      margin-bottom: 20px;
-      color: #1e3a8a;
-    }
-
-    input {
-      width: 92%;
-      padding: 12px;
-      margin: 10px 0;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      font-size: 14px;
-      outline: none;
-    }
-
-    input:focus {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
-    }
-
-    button {
-      width: 96%;
-      padding: 12px;
-      background-color: #3b82f6;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 15px;
-      cursor: pointer;
-      margin-top: 10px;
-      transition: 0.2s;
-    }
-
-    button:hover {
-      background-color: #2563eb;
-    }
-
-    .switch-btn {
-      background-color: #64748b;
-    }
-
-    .switch-btn:hover {
-      background-color: #475569;
-    }
-
-    .logout-btn {
-      background-color: #ef4444;
-    }
-
-    .logout-btn:hover {
-      background-color: #dc2626;
-    }
-
-    #result {
-      margin-top: 15px;
-      font-weight: bold;
-      min-height: 24px;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .welcome-box {
-      display: none;
-    }
-
-    .welcome-box h3 {
-      color: #0f172a;
-      margin-bottom: 10px;
-    }
-
-    .small-text {
-      font-size: 13px;
-      color: #64748b;
-      margin-top: 12px;
-    }
-  </style>
+  <title>로그인 테스트</title>
 </head>
 <body>
 
-  <div class="container">
-    <h2 id="form-title">로그인</h2>
+<h1>회원가입</h1>
 
-    <!-- 로그인 폼 -->
-    <div id="login-form">
-      <input type="text" id="login-id" placeholder="아이디 입력">
-      <input type="password" id="login-pw" placeholder="비밀번호 입력">
-      <button onclick="login()">로그인</button>
-      <button class="switch-btn" onclick="showSignup()">회원가입 하러가기</button>
-    </div>
+<form id="registerForm">
+  <input type="text" id="registerUsername" placeholder="아이디" required>
+  <br><br>
 
-    <!-- 회원가입 폼 -->
-    <div id="signup-form" class="hidden">
-      <input type="text" id="signup-id" placeholder="새 아이디 입력">
-      <input type="password" id="signup-pw" placeholder="새 비밀번호 입력">
-      <input type="password" id="signup-pw-check" placeholder="비밀번호 다시 입력">
-      <button onclick="signup()">회원가입</button>
-      <button class="switch-btn" onclick="showLogin()">로그인 하러가기</button>
-    </div>
+  <input type="password" id="registerPassword" placeholder="비밀번호" required>
+  <br><br>
 
-    <!-- 로그인 성공 후 -->
-    <div id="welcome-box" class="welcome-box">
-      <h3 id="welcome-text"></h3>
-      <p>로그인에 성공했습니다.</p>
-      <button class="logout-btn" onclick="logout()">로그아웃</button>
-    </div>
+  <button type="submit">회원가입</button>
+</form>
 
-    <p id="result"></p>
-    <p class="small-text">브라우저 저장 기반 데모 버전</p>
-  </div>
+<hr>
 
-  <script>
-    // 사용자 데이터 불러오기
-    function getUsers() {
-      try {
-        const users = localStorage.getItem("users");
-        return users ? JSON.parse(users) : {};
-      } catch (e) {
-        return {};
-      }
-    }
+<h1>로그인</h1>
 
-    // 사용자 데이터 저장
-    function saveUsers(users) {
-      localStorage.setItem("users", JSON.stringify(users));
-    }
+<form id="loginForm">
+  <input type="text" id="loginUsername" placeholder="아이디" required>
+  <br><br>
 
-    // 메시지 표시
-    function showMessage(message, color = "red") {
-      const result = document.getElementById("result");
-      result.innerText = message;
-      result.style.color = color;
-    }
+  <input type="password" id="loginPassword" placeholder="비밀번호" required>
+  <br><br>
 
-    // 화면 전환
-    function showSignup() {
-      document.getElementById("form-title").innerText = "회원가입";
-      document.getElementById("login-form").classList.add("hidden");
-      document.getElementById("signup-form").classList.remove("hidden");
-      document.getElementById("welcome-box").style.display = "none";
-      showMessage("");
-    }
+  <button type="submit">로그인</button>
+</form>
 
-    function showLogin() {
-      document.getElementById("form-title").innerText = "로그인";
-      document.getElementById("signup-form").classList.add("hidden");
-      document.getElementById("login-form").classList.remove("hidden");
-      document.getElementById("welcome-box").style.display = "none";
-      showMessage("");
-    }
+<script>
 
-    // 회원가입
-    function signup() {
-      const id = document.getElementById("signup-id").value.trim();
-      const pw = document.getElementById("signup-pw").value;
-      const pwCheck = document.getElementById("signup-pw-check").value;
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
 
-      if (!id || !pw || !pwCheck) {
-        showMessage("모든 칸을 입력하세요.");
-        return;
-      }
+  e.preventDefault();
 
-      if (pw.length < 4) {
-        showMessage("비밀번호는 4자 이상으로 입력하세요.");
-        return;
-      }
+  const username = document.getElementById('registerUsername').value;
+  const password = document.getElementById('registerPassword').value;
 
-      if (pw !== pwCheck) {
-        showMessage("비밀번호가 일치하지 않습니다.");
-        return;
-      }
+  const response = await fetch('/register', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      username,
+      password
+    })
+  });
 
-      const users = getUsers();
+  const text = await response.text();
 
-      if (users[id]) {
-        showMessage("이미 존재하는 아이디입니다.");
-        return;
-      }
+  alert(text);
+});
 
-      users[id] = pw;
-      saveUsers(users);
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
 
-      showMessage("회원가입 성공! 이제 로그인하세요.", "green");
+  e.preventDefault();
 
-      document.getElementById("signup-id").value = "";
-      document.getElementById("signup-pw").value = "";
-      document.getElementById("signup-pw-check").value = "";
-    }
+  const username = document.getElementById('loginUsername').value;
+  const password = document.getElementById('loginPassword').value;
 
-    // 로그인
-    function login() {
-      const id = document.getElementById("login-id").value.trim();
-      const pw = document.getElementById("login-pw").value;
+  const response = await fetch('/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      username,
+      password
+    })
+  });
 
-      if (!id || !pw) {
-        showMessage("아이디와 비밀번호를 입력하세요.");
-        return;
-      }
+  const text = await response.text();
 
-      const users = getUsers();
+  alert(text);
+});
 
-      if (users[id] && users[id] === pw) {
-        localStorage.setItem("loggedInUser", id);
-        showWelcome(id);
-        showMessage("로그인 성공!", "green");
-      } else {
-        showMessage("아이디 또는 비밀번호가 틀렸습니다.");
-      }
-    }
-
-    // 로그인 성공 화면
-    function showWelcome(id) {
-      document.getElementById("form-title").innerText = "환영합니다";
-      document.getElementById("login-form").classList.add("hidden");
-      document.getElementById("signup-form").classList.add("hidden");
-      document.getElementById("welcome-box").style.display = "block";
-      document.getElementById("welcome-text").innerText = `${id}님 환영합니다 👋`;
-    }
-
-    // 로그아웃
-    function logout() {
-      localStorage.removeItem("loggedInUser");
-      document.getElementById("login-id").value = "";
-      document.getElementById("login-pw").value = "";
-      showLogin();
-      showMessage("로그아웃되었습니다.", "green");
-    }
-
-    // 페이지 새로고침해도 로그인 유지
-    window.onload = function () {
-      const loggedInUser = localStorage.getItem("loggedInUser");
-      if (loggedInUser) {
-        showWelcome(loggedInUser);
-      }
-    };
-  </script>
+</script>
 
 </body>
 </html>
