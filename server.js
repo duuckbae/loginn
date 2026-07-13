@@ -1,5 +1,5 @@
 const express = require('express');
-const { body, validationResult } = require('express-validator');
+const { body, validationResult } = require('express-validator'); // <-- validationResult가 누락되었거나 철자가 틀렸는지 확인!
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const { Pool } = require('pg');
