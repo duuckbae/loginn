@@ -5,10 +5,22 @@ const path = require('path');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 
-// 🛡️ 1. 방금 만든 보안 미들웨어 불러오기
+// 🔥 [추가된 진짜 방어 무기들]
+const helmet = require('helmet'); // Group 3 방어 (웹 보안 헤더)
+const rateLimit = require('express-rate-limit'); // Group 4 방어 (DDoS 차단)
+const { body, validationResult } = require('express-validator'); // Group 2 방어 (입력값 정화)
+
 const securityMiddleware = require('./middleware/security');
 
 const app = express();
+
+// ==========================================
+// 🛡️ Group 3 방어: Helmet 장착 (XSS, 스니핑 방어용 HTTP 헤더 자동 세팅)
+// (주의: 구글 캡차 외부 스크립트 허용을 위해 CSP 옵션은 잠시 꺼둡니다)
+// ==========================================
+app.use(helmet({
+    contentSecurityPolicy: false, 
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -22,30 +34,70 @@ const pool = new Pool({
   }
 });
 
+// 미들웨어에서 DB를 쓸 수 있게 앱에 등록
 app.set('pool', pool);
 
-app.post('/register', async (req, res) => {
+// ==========================================
+// 🛡️ Group 4 방어: 로그인 전용 트래픽 제어 (Rate Limit)
+// 15분 동안 5번 이상 로그인 요청(성공/실패 포함) 시 IP 원천 차단
+// ==========================================
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15분
+  max: 5, 
+  message: { 
+      success: false, 
+      action: 'BLOCK_IP', 
+      message: "🚨 과도한 요청이 감지되었습니다. 15분 후 다시 시도해주세요." 
+  }
+});
+
+// ==========================================
+// 🛡️ Group 2 방어: 입력값 정화 미들웨어 (Sanitization)
+// 아이디, 비밀번호 칸에 <script> 같은 해킹 코드가 들어오면 강제로 문자를 깨버림 (escape)
+// ==========================================
+const sanitizeInputs = [
+    body('username').trim().escape(),
+    body('password').trim().escape()
+];
+
+
+// --- 회원가입 라우터 (입력값 정화 장착) ---
+app.post('/register', sanitizeInputs, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+      return res.status(400).send('잘못된 입력값이 포함되어 있습니다.');
+  }
+
   const { username, password } = req.body;
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-
     await pool.query(
       'INSERT INTO users (username, password) VALUES ($1, $2)',
       [username, hashedPassword]
     );
-
     res.send('회원가입 성공');
-
   } catch (err) {
     console.error(err);
     res.status(500).send('에러 발생');
   }
 });
 
-// 🛡️ 2. 로그인 라우터에 securityMiddleware 장착
-// 이제 이 라우터로 들어오기 전에 미들웨어가 먼저 가로채서 봇인지 검사합니다.
-app.post('/login', securityMiddleware, async (req, res) => {
+
+// --- 로그인 라우터 (방어 무기 3종 세트 모두 장착!) ---
+// 방어 순서: 1. Rate Limit(연타형 봇 차단) -> 2. Sanitization(해킹 텍스트 정화) -> 3. Security Engine(행동 기반 캡차 판정)
+app.post('/login', loginLimiter, sanitizeInputs, securityMiddleware, async (req, res) => {
+  
+  // 정화 과정에서 이상한 값이 발견되었는지 확인
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+          success: false, 
+          action: 'BLOCK_REQUEST', 
+          message: '허용되지 않는 특수문자가 포함되어 있습니다.' 
+      });
+  }
+
   const { username, password } = req.body;
 
   try {
@@ -54,14 +106,11 @@ app.post('/login', securityMiddleware, async (req, res) => {
       [username]
     );
 
-    // 💡 3. 프론트엔드(script.js)가 JSON 응답을 기다리도록 수정했으므로, 
-    // 서버 응답도 res.send() 대신 res.json()으로 맞춰줍니다.
     if (result.rows.length === 0) {
       return res.status(401).json({ success: false, message: '아이디 없음' });
     }
 
     const user = result.rows[0];
-
     const match = await bcrypt.compare(password, user.password);
 
     if (match) {
