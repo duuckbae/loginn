@@ -1,5 +1,5 @@
 // ========================================================
-// 1. 회원가입 요청 로직 (기존 유지)
+// 1. 회원가입 요청 로직
 // ========================================================
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -61,7 +61,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             
         // 🛡️ IP 차단 등 완전 거부 정황인 경우
         } else if (result.action === 'BLOCK_IP' || result.action === 'BLOCK_REQUEST') {
-            alert("🚨 보안 정책에 의해 요청이 차단되었습니다.");
+            // 🔥 이제 서버가 보내주는 진짜 에러 메시지(15분 차단 등)를 그대로 띄웁니다!
+            alert(result.message);
         } else {
             // 정상적인 판정 처리 (성공 혹은 패스워드 불일치)
             if (result.success) {
@@ -76,7 +77,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 });
 
 // ========================================================
-// 3. 2차 캡차 인증 후 로그인 재시도 로직 (추가된 핵심 무기)
+// 3. 2차 캡차 인증 후 로그인 재시도 로직
 // ========================================================
 async function verifyCaptcha() {
     // 구글 캡차 인증 박스로부터 발급된 토큰 꺼내오기
@@ -100,7 +101,7 @@ async function verifyCaptcha() {
         body: JSON.stringify({
             username,
             password,
-            captchaToken: token // 🔥 이 토큰이 실려가면 미들웨어가 구글과 대조합니다.
+            captchaToken: token 
         })
     });
 
