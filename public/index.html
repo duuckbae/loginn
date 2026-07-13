@@ -1,86 +1,74 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
+
 <head>
-  <meta charset="UTF-8">
-  <title>로그인 테스트</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Login</title>
+
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<h1>회원가입</h1>
+<div class="login-box">
 
-<form id="registerForm">
-  <input type="text" id="registerUsername" placeholder="아이디" required>
-  <br><br>
+    <h1>🔒 Secure Login System</h1>
+    <p class="subtitle">Node.js · Express · Supabase</p>
 
-  <input type="password" id="registerPassword" placeholder="비밀번호" required>
-  <br><br>
+    <div class="card">
 
-  <button type="submit">회원가입</button>
-</form>
+        <h2>회원가입</h2>
 
-<hr>
+        <form id="registerForm">
 
-<h1>로그인</h1>
+            <input
+                type="text"
+                id="registerUsername"
+                placeholder="아이디"
+                required>
 
-<form id="loginForm">
-  <input type="text" id="loginUsername" placeholder="아이디" required>
-  <br><br>
+            <input
+                type="password"
+                id="registerPassword"
+                placeholder="비밀번호"
+                required>
 
-  <input type="password" id="loginPassword" placeholder="비밀번호" required>
-  <br><br>
+            <button type="submit">
+                회원가입
+            </button>
 
-  <button type="submit">로그인</button>
-</form>
+        </form>
 
-<script>
+        <hr>
 
-document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        <h2>로그인</h2>
 
-  e.preventDefault();
+        <form id="loginForm">
 
-  const username = document.getElementById('registerUsername').value;
-  const password = document.getElementById('registerPassword').value;
+            <input
+                type="text"
+                id="loginUsername"
+                placeholder="아이디"
+                required>
 
-  const response = await fetch('/register', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      username,
-      password
-    })
-  });
+            <input
+                type="password"
+                id="loginPassword"
+                placeholder="비밀번호"
+                required>
 
-  const text = await response.text();
+            <button type="submit">
+                로그인
+            </button>
 
-  alert(text);
-});
+        </form>
 
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    </div>
 
-  e.preventDefault();
+</div>
 
-  const username = document.getElementById('loginUsername').value;
-  const password = document.getElementById('loginPassword').value;
-
-  const response = await fetch('/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      username,
-      password
-    })
-  });
-
-  const text = await response.text();
-
-  alert(text);
-});
-
-</script>
+<script src="script.js"></script>
 
 </body>
 </html>
