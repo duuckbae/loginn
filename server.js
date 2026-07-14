@@ -1,126 +1,132 @@
-// ========================================================
-// 1. 회원가입 요청 로직
-// ========================================================
-document.getElementById('registerForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+require('dotenv').config();
 
-    const username = document.getElementById('registerUsername').value;
-    const password = document.getElementById('registerPassword').value;
+const express = require('express');
+const path = require('path');
+const { Pool } = require('pg');
+const bcrypt = require('bcrypt');
 
-    const response = await fetch('/register', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            username,
-            password
-        })
-    });
+// 🔥 [추가된 진짜 방어 무기들]
+const helmet = require('helmet'); // Group 3 방어 (웹 보안 헤더)
+const rateLimit = require('express-rate-limit'); // Group 4 방어 (DDoS 차단)
+const { body, validationResult } = require('express-validator'); // Group 2 방어 (입력값 정화)
 
-    alert(await response.text());
+const securityMiddleware = require('./middleware/security');
+
+const app = express();
+
+// ==========================================
+// 🛡️ Group 3 방어: Helmet 장착 (XSS, 스니핑 방어용 HTTP 헤더 자동 세팅)
+// (주의: 구글 캡차 외부 스크립트 허용을 위해 CSP 옵션은 잠시 꺼둡니다)
+// ==========================================
+app.use(helmet({
+    contentSecurityPolicy: false, 
+}));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
-// ========================================================
-// 2. 1차 로그인 시도 로직 (보안 센서 데이터 포함)
-// ========================================================
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+// 미들웨어에서 DB를 쓸 수 있게 앱에 등록
+app.set('pool', pool);
 
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
-
-    // FDS(보안 센서) 데이터 수집
-    let securitySignals = {};
-    if (typeof window.collectSecurityData === 'function') {
-        securitySignals = window.collectSecurityData();
-    }
-
-    const response = await fetch('/login', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            username,
-            password,
-            signals: securitySignals // 아이디, 비번과 함께 징후 데이터 전송
-        })
-    });
-
-    try {
-        const result = await response.json();
-        
-        // 🛡️ 리스크 엔진이 캡차 인증을 요구한 경우
-        if (result.action === 'REQUIRE_CAPTCHA') {
-            const captchaModal = document.getElementById('captchaModal');
-            if (captchaModal) {
-                captchaModal.style.display = 'block'; // 숨겨둔 진짜 구글 캡차 창 표시
-            }
-            document.getElementById('loginForm').style.display = 'none'; // 기존 로그인 폼은 숨김
-            
-        // 🛡️ IP 차단 등 완전 거부 정황인 경우
-        } else if (result.action === 'BLOCK_IP' || result.action === 'BLOCK_REQUEST') {
-            // 🔥 이제 서버가 보내주는 진짜 에러 메시지(15분 차단 등)를 그대로 띄웁니다!
-            alert(result.message);
-        } else {
-            // 정상적인 판정 처리 (성공 혹은 패스워드 불일치)
-            if (result.success) {
-                alert("로그인 성공! 🎉");
-            } else {
-                alert(result.message || "로그인 실패");
-            }
-        }
-    } catch (err) {
-        alert("서버 응답 오류가 발생했습니다.");
-    }
+// ==========================================
+// 🛡️ Group 4 방어: 로그인 전용 트래픽 제어 (Rate Limit)
+// 15분 동안 5번 이상 로그인 요청(성공/실패 포함) 시 IP 원천 차단
+// ==========================================
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15분
+  max: 5, 
+  message: { 
+      success: false, 
+      action: 'BLOCK_IP', 
+      message: "🚨 과도한 요청이 감지되었습니다. 15분 후 다시 시도해주세요." 
+  }
 });
 
-// ========================================================
-// 3. 2차 캡차 인증 후 로그인 재시도 로직
-// ========================================================
-async function verifyCaptcha() {
-    // 구글 캡차 인증 박스로부터 발급된 토큰 꺼내오기
-    const token = grecaptcha.getResponse();
-    
-    if (!token) {
-        alert("캡차 체크박스를 먼저 체크해 주세요!");
-        return;
+// ==========================================
+// 🛡️ Group 2 방어: 입력값 정화 미들웨어 (Sanitization)
+// 아이디, 비밀번호 칸에 <script> 같은 해킹 코드가 들어오면 강제로 문자를 깨버림 (escape)
+// ==========================================
+const sanitizeInputs = [
+    body('username').trim().escape(),
+    body('password').trim().escape()
+];
+
+
+// --- 회원가입 라우터 (입력값 정화 장착) ---
+app.post('/register', sanitizeInputs, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+      return res.status(400).send('잘못된 입력값이 포함되어 있습니다.');
+  }
+
+  const { username, password } = req.body;
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await pool.query(
+      'INSERT INTO users (username, password) VALUES ($1, $2)',
+      [username, hashedPassword]
+    );
+    res.send('회원가입 성공');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('에러 발생');
+  }
+});
+
+
+// --- 로그인 라우터 (방어 무기 3종 세트 모두 장착!) ---
+// 방어 순서: 1. Rate Limit(연타형 봇 차단) -> 2. Sanitization(해킹 텍스트 정화) -> 3. Security Engine(행동 기반 캡차 판정)
+app.post('/login', loginLimiter, sanitizeInputs, securityMiddleware, async (req, res) => {
+  
+  // 정화 과정에서 이상한 값이 발견되었는지 확인
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+          success: false, 
+          action: 'BLOCK_REQUEST', 
+          message: '허용되지 않는 특수문자가 포함되어 있습니다.' 
+      });
+  }
+
+  const { username, password } = req.body;
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM users WHERE username=$1',
+      [username]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, message: '아이디 없음' });
     }
 
-    // 로그인 폼에 입력되어 있던 아이디와 비밀번호 재수집
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
+    const user = result.rows[0];
+    const match = await bcrypt.compare(password, user.password);
 
-    // 서버로 캡차 토큰을 얹어서 재인증 요청
-    const response = await fetch('/login', {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify({
-            username,
-            password,
-            captchaToken: token 
-        })
-    });
-
-    try {
-        const result = await response.json();
-
-        if (result.success) {
-            alert("로그인 성공! 🎉 보안 검증을 통과했습니다.");
-            
-            // 로그인 성공 후 원래 화면 상태로 복구
-            document.getElementById('captchaModal').style.display = 'none';
-            document.getElementById('loginForm').style.display = 'block';
-            grecaptcha.reset(); // 캡차 상태 초기화
-        } else {
-            alert(result.message || "로그인 실패");
-            grecaptcha.reset(); // 실패 시 캡차 재인증 유도
-        }
-    } catch (err) {
-        alert("캡차 검증 서버 통신 중 에러가 발생했습니다.");
-        grecaptcha.reset();
+    if (match) {
+      res.json({ success: true, message: '로그인 성공' });
+    } else {
+      res.status(401).json({ success: false, message: '비밀번호 틀림' });
     }
-}
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: '에러 발생' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`서버 실행중: http://localhost:${PORT}`);
+});
