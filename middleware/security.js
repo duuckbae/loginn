@@ -43,7 +43,8 @@ async function securityMiddleware(req, res, next) {
         // ==========================================
         // 1차 일반 로그인 시도 시 (기존 리스크 엔진 로직)
         // ==========================================
-        const currentHour = new Date().getHours();
+        // 세계 표준시(UTC)에서 9시간을 더한 뒤, 24시 단위로 딱 떨어지게 계산
+        const currentHour = (new Date().getUTCHours() + 9) % 24;
         const serverSignals = {
             isProxyVpn: !!(req.headers['via'] || req.headers['x-forwarded-for']),
             abnormalTime: currentHour >= 2 && currentHour <= 5,
